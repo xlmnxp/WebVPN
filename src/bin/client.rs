@@ -9,6 +9,7 @@ use std::sync::Mutex;
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
+use webrtc::data_channel::data_channel_message::DataChannelMessage;
 use webrtc::data_channel::RTCDataChannel;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
@@ -114,7 +115,8 @@ async fn main() -> Result<()> {
         .await;
     let mut config = tun::Configuration::default();
     config
-        .address((10, 25, 0, 1))
+        .name("client")
+        .address((10, 30, 0, 1))
         .netmask((255, 255, 255, 0))
         .mtu(1200)
         .up();
@@ -126,42 +128,41 @@ async fn main() -> Result<()> {
 
     // Register data channel creation handling
     peer_connection
-        .on_data_channel(Box::new(move |data_channel: Arc<RTCDataChannel>| {
+    .on_data_channel(Box::new(move |data_channel: Arc<RTCDataChannel>| {
             let device: tun::platform::Device = tun::create(&config).unwrap();
             let device_clone = Arc::new(Mutex::new(device));
             Box::pin(async move {
-                // data_channel
-                //     .on_message(Box::new(move |msg: DataChannelMessage| {
-                //         Box::pin(async move {
-                //             println!(
-                //                 "receive message: {}",
-                //                 String::from_utf8(msg.data.to_vec()).unwrap()
-                //             );
-                //         })
-                //     }))
-                //     .await;
+                data_channel
+                    .on_message(Box::new(move |msg: DataChannelMessage| {
+                        Box::pin(async move {
+                            println!(
+                                "receive\t\t: {:?}\nresult\t\t: Len({:?})",
+                                msg.data.to_vec(),
+                                msg.data.to_vec().len()
+                            );
+                        })
+                    }))
+                    .await;
 
-                let device_clone = device_clone.clone();
                 let dc = data_channel.clone();
                 data_channel
                     .on_open(Box::new(move || {
                         Box::pin(async move {
-                            println!(
-                                "datachannel label: {}, id: {} is open",
-                                dc.label(),
-                                dc.id()
-                            );
-
+                            println!("datachannel label: {}, id: {} is open", dc.label(), dc.id());
                             loop {
+                                let dc = dc.clone();
                                 let mut buf: [u8; 500] = [0u8; 500];
                                 let amount = device_clone.lock().unwrap().read(&mut buf).unwrap();
-                                let dc2 = dc.clone();
                                 tokio::task::spawn(async move {
-                                    let result: Result<usize> = dc2
-                                    .send(&Bytes::from(buf.to_vec()).slice(0..amount))
-                                    .await
-                                    .map_err(Into::into);
-                                    println!("send\t\t: {:?}\nresult\t\t: Len({:?})", &buf[0..amount], result.unwrap())                                    
+                                    let result: Result<usize> = dc
+                                        .send(&Bytes::from(buf.to_vec()).slice(0..amount))
+                                        .await
+                                        .map_err(Into::into);
+                                    println!(
+                                        "send\t\t: {:?}\nresult\t\t: Len({:?})",
+                                        &buf[0..amount],
+                                        result.unwrap()
+                                    )
                                 });
                             }
                         })

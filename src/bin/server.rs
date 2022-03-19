@@ -1,8 +1,11 @@
 extern crate tun;
 use anyhow::Result;
+use bytes::Bytes;
 use clap::{App, AppSettings, Arg};
+use std::io::Read;
 use std::io::Write;
 use std::sync::Arc;
+use std::sync::Mutex;
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
@@ -124,12 +127,43 @@ async fn main() -> Result<()> {
         }))
         .await;
 
+    let mut config = tun::Configuration::default();
+    config
+        .name("server")
+        .address((10, 25, 0, 1))
+        .netmask((255, 255, 255, 0))
+        .mtu(1200)
+        .up();
+
+    #[cfg(target_os = "linux")]
+    config.platform(|config| {
+        config.packet_information(true);
+    });
+
+    let device: tun::platform::Device = tun::create(&config).unwrap();
+    let device_clone = Arc::new(Mutex::new(device));
+    let dc = data_channel.clone();
     // Register channel opening handling
-    let d1 = Arc::clone(&data_channel);
     data_channel
         .on_open(Box::new(move || {
             Box::pin(async move {
-                println!("datachannel label: {}, id: {} is open", d1.label(), d1.id())
+                println!("datachannel label: {}, id: {} is open", dc.label(), dc.id());
+                loop {
+                    let dc = dc.clone();
+                    let mut buf: [u8; 500] = [0u8; 500];
+                    let amount = device_clone.lock().unwrap().read(&mut buf).unwrap();
+                    tokio::task::spawn(async move {
+                        let result: Result<usize> = dc
+                            .send(&Bytes::from(buf.to_vec()).slice(0..amount))
+                            .await
+                            .map_err(Into::into);
+                        println!(
+                            "send\t\t: {:?}\nresult\t\t: Len({:?})",
+                            &buf[0..amount],
+                            result.unwrap()
+                        )
+                    });
+                }
             })
         }))
         .await;
@@ -137,12 +171,13 @@ async fn main() -> Result<()> {
     // Register text message handling
     data_channel
         .on_message(Box::new(move |msg: DataChannelMessage| {
-            println!(
-                "receive\t\t: {:?}\nresult\t\t: Len({:?})",
-                msg.data.to_vec(),
-                msg.data.to_vec().len()
-            );
-            Box::pin(async {})
+            Box::pin(async move {
+                println!(
+                    "receive\t\t: {:?}\nresult\t\t: Len({:?})",
+                    msg.data.to_vec(),
+                    msg.data.to_vec().len()
+                );
+            })
         }))
         .await;
 
