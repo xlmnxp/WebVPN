@@ -20,7 +20,7 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 async fn main() -> Result<()> {
     let mut app = App::new("wvn")
         .version("0.1.0")
-        .author("Salem Yasken <s@sy.sa>")
+        .author("Salem Yaslem <s@sy.sa>")
         .about("VPN over WebRTC.")
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::SubcommandsNegateReqs)
@@ -89,6 +89,12 @@ async fn main() -> Result<()> {
     // Prepare the configuration
     let config = RTCConfiguration {
         ice_servers: vec![
+            RTCIceServer {
+                urls: vec!["stun:numb.viagenie.ca".to_owned()],
+                username: String::from("s@sy.sa"),
+                credential: String::from("Aa@123456"),
+                ..Default::default()
+            },
             RTCIceServer {
                 urls: vec!["turn:numb.viagenie.ca".to_owned()],
                 username: String::from("s@sy.sa"),
