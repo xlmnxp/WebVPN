@@ -130,24 +130,28 @@ async fn main() -> Result<()> {
 
     // Register data channel creation handling
     peer_connection
-    .on_data_channel(Box::new(move |data_channel: Arc<RTCDataChannel>| {
+        .on_data_channel(Box::new(move |data_channel: Arc<RTCDataChannel>| {
             let device: tun::platform::Device = tun::create(&config).unwrap();
             let device_clone = Arc::new(Mutex::new(device));
             let device_clone2 = device_clone.clone();
             Box::pin(async move {
                 data_channel
-                .on_message(Box::new(move |msg: DataChannelMessage| {
+                    .on_message(Box::new(move |msg: DataChannelMessage| {
                         let device_clone2 = device_clone2.clone();
                         Box::pin(async move {
-                            device_clone2
-                            .lock()
-                            .unwrap()
-                            .write(&msg.data.to_vec())
-                            .unwrap();
                             println!(
                                 "receive\t\t: {:?}\nresult\t\t: Len({:?})",
                                 msg.data.to_vec(),
                                 msg.data.to_vec().len()
+                            );
+
+                            println!(
+                                "write: {}",
+                                device_clone2
+                                    .lock()
+                                    .unwrap()
+                                    .write(&msg.data.to_vec())
+                                    .unwrap()
                             );
                         })
                     }))

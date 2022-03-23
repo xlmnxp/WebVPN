@@ -28,13 +28,13 @@ async fn main() -> Result<()> {
             Arg::with_name("help")
                 .long("help")
                 .short("h")
-                .help("Prints more detailed help information")
+                .help("Prints more detailed help information"),
         )
         .arg(
             Arg::with_name("debug")
                 .long("debug")
                 .short("d")
-                .help("Prints debug log information")
+                .help("Prints debug log information"),
         );
 
     let matches = app.clone().get_matches();
@@ -177,15 +177,18 @@ async fn main() -> Result<()> {
         .on_message(Box::new(move |msg: DataChannelMessage| {
             let device_clone2 = device_clone2.clone();
             Box::pin(async move {
-                device_clone2
-                    .lock()
-                    .unwrap()
-                    .write(&msg.data.to_vec())
-                    .unwrap();
                 println!(
                     "receive\t\t: {:?}\nresult\t\t: Len({:?})",
                     msg.data.to_vec(),
                     msg.data.to_vec().len()
+                );
+                println!(
+                    "write: {}",
+                    device_clone2
+                        .lock()
+                        .unwrap()
+                        .write(&msg.data.to_vec())
+                        .unwrap()
                 );
             })
         }))
