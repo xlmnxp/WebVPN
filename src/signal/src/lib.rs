@@ -34,7 +34,8 @@ pub fn decode(s: &str) -> Result<String> {
     let decoded_ascii85_string = ascii85::decode(s).unwrap();
     let mut gz_decoded = read::GzDecoder::new(&decoded_ascii85_string[..]);
     let mut decoded_string = Vec::new();
-    println!("decode {}", s);
     gz_decoded.read_to_end(&mut decoded_string)?;
-    Ok(String::from_utf8(smaz::decompress(&decoded_string)?)?)
+    let b = String::from_utf8(smaz::decompress(&decoded_string)?)?;
+    println!("decode {}", b);
+    Ok(b)
 }

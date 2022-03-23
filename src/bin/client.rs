@@ -78,10 +78,6 @@ async fn main() -> Result<()> {
     let config = RTCConfiguration {
         ice_servers: vec![
             RTCIceServer {
-                urls: vec!["stun:stun.l.google.com:19302".to_owned()],
-                ..Default::default()
-            },
-            RTCIceServer {
                 urls: vec!["turn:numb.viagenie.ca".to_owned()],
                 username: String::from("s@sy.sa"),
                 credential: String::from("Aa@123456"),
