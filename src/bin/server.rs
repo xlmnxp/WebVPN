@@ -18,22 +18,23 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut app = App::new("data-channels-create")
+    let mut app = App::new("wvn")
         .version("0.1.0")
-        .author("Rain Liu <yliu@webrtc.rs>")
-        .about("An example of Data-Channels-Create.")
+        .author("Salem Yasken <s@sy.sa>")
+        .about("VPN over WebRTC.")
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::SubcommandsNegateReqs)
         .arg(
-            Arg::with_name("FULLHELP")
+            Arg::with_name("help")
+                .long("help")
+                .short("h")
                 .help("Prints more detailed help information")
-                .long("fullhelp"),
         )
         .arg(
             Arg::with_name("debug")
                 .long("debug")
                 .short("d")
-                .help("Prints debug log information"),
+                .help("Prints debug log information")
         );
 
     let matches = app.clone().get_matches();
@@ -62,6 +63,7 @@ async fn main() -> Result<()> {
     }
 
     // Everything below is the WebRTC-rs API! Thanks for using it ❤️.
+    // THANK YOU WebRTC-rs developers!
 
     // Create a MediaEngine object to configure the supported codec
     let mut m = MediaEngine::default();
@@ -129,7 +131,7 @@ async fn main() -> Result<()> {
 
     let mut config = tun::Configuration::default();
     config
-        .name("server")
+        .name("wvns")
         .address((10, 25, 0, 1))
         .netmask((255, 255, 255, 0))
         .mtu(1200)
@@ -142,6 +144,7 @@ async fn main() -> Result<()> {
 
     let device: tun::platform::Device = tun::create(&config).unwrap();
     let device_clone = Arc::new(Mutex::new(device));
+    let device_clone2 = device_clone.clone();
     let dc = data_channel.clone();
     // Register channel opening handling
     data_channel
@@ -167,11 +170,16 @@ async fn main() -> Result<()> {
             })
         }))
         .await;
-
     // Register text message handling
     data_channel
         .on_message(Box::new(move |msg: DataChannelMessage| {
+            let device_clone2 = device_clone2.clone();
             Box::pin(async move {
+                device_clone2
+                    .lock()
+                    .unwrap()
+                    .write(&msg.data.to_vec())
+                    .unwrap();
                 println!(
                     "receive\t\t: {:?}\nresult\t\t: Len({:?})",
                     msg.data.to_vec(),

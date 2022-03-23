@@ -19,16 +19,16 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut app = App::new("data-channels")
+    let mut app = App::new("wvn")
         .version("0.1.0")
-        .author("Rain Liu <yliu@webrtc.rs>")
-        .about("An example of Data-Channels.")
+        .author("Salem Yasken <s@sy.sa>")
+        .about("VPN over WebRTC.")
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::SubcommandsNegateReqs)
         .arg(
-            Arg::with_name("FULLHELP")
+            Arg::with_name("help")
                 .help("Prints more detailed help information")
-                .long("fullhelp"),
+                .long("help"),
         )
         .arg(
             Arg::with_name("debug")
@@ -115,8 +115,8 @@ async fn main() -> Result<()> {
         .await;
     let mut config = tun::Configuration::default();
     config
-        .name("client")
-        .address((10, 30, 0, 1))
+        .name("wvnc")
+        .address((10, 25, 0, 2))
         .netmask((255, 255, 255, 0))
         .mtu(1200)
         .up();
@@ -131,10 +131,17 @@ async fn main() -> Result<()> {
     .on_data_channel(Box::new(move |data_channel: Arc<RTCDataChannel>| {
             let device: tun::platform::Device = tun::create(&config).unwrap();
             let device_clone = Arc::new(Mutex::new(device));
+            let device_clone2 = device_clone.clone();
             Box::pin(async move {
                 data_channel
-                    .on_message(Box::new(move |msg: DataChannelMessage| {
+                .on_message(Box::new(move |msg: DataChannelMessage| {
+                        let device_clone2 = device_clone2.clone();
                         Box::pin(async move {
+                            device_clone2
+                            .lock()
+                            .unwrap()
+                            .write(&msg.data.to_vec())
+                            .unwrap();
                             println!(
                                 "receive\t\t: {:?}\nresult\t\t: Len({:?})",
                                 msg.data.to_vec(),
