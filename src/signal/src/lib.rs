@@ -22,6 +22,7 @@ pub fn encode(b: &str) -> String {
     //if COMPRESS {
     //    b = zip(b);
     //}
+    println!("encode {}", b);
     let mut encoder = write::GzEncoder::new(Vec::new(), Compression::best());
     encoder.write_all(&smaz::compress(b.as_bytes())).unwrap();
     ascii85::encode(&encoder.finish().unwrap())
@@ -33,6 +34,7 @@ pub fn decode(s: &str) -> Result<String> {
     let decoded_ascii85_string = ascii85::decode(s).unwrap();
     let mut gz_decoded = read::GzDecoder::new(&decoded_ascii85_string[..]);
     let mut decoded_string = Vec::new();
+    println!("decode {}", s);
     gz_decoded.read_to_end(&mut decoded_string)?;
     Ok(String::from_utf8(smaz::decompress(&decoded_string)?)?)
 }
